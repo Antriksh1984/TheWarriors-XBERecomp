@@ -1,4 +1,4 @@
-# The Warriors - XBE Recomp
+# The Warriors - XBERecomp
 
 An unofficial native PC port of the original Xbox version of The Warriors via static recompilation, built into a 64 bit Windows executable. The game's x86 code is translated to C++ ahead of time, the Xbox kernel, Direct3D and DirectSound calls are implemented on Windows, and everything is drawn with Direct3D 12 and played through XAudio2. Made with the [Xbox XBE Recomp](https://github.com/TGP482/XboxXBERecomp) tool.
 
