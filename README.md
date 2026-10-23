@@ -16,6 +16,10 @@ An unofficial native PC port of the original Xbox version of The Warriors via st
 
 The game recompiles, boots through its XDK initialisation and renders gameplay with the native Direct3D 12 renderer, with no crashes in the first 90 seconds.
 
+### Video
+
+[![The Warriors XBE Recomp - 1](https://img.youtube.com/vi/NpzpBngV25E/maxresdefault.jpg)](https://youtu.be/NpzpBngV25E)
+
 ### Done
 - Recompiled from the NTSC retail XBE (XDK 5849, sha1 `fe246a74501cd10d2ce89ca5dbda5080d2b2edcc`).
 - XDK symbols the signature scan could not resolve on a retail disc, found by hand and documented in `config/game.toml`.
