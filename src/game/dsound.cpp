@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 
 #include "xdk/hle.h"
@@ -18,10 +19,6 @@ constexpr uint32_t kVoicePropsSize = 92;
 
 }  // namespace
 
-// SetPitch (voice 0x3A83E9): the host mixer only follows SetFrequency
-X86_FUNC(sub_003A95FA) { (void)base; Done(ctx); }  // buffer
-X86_FUNC(sub_003AA085) { (void)base; Done(ctx); }  // stream, jmp 0x3A98B6
-
 // SetLFO (voice 0x3A841E): the host mixer has no LFOs
 X86_FUNC(sub_003A9648) { (void)base; Done(ctx); }  // buffer
 X86_FUNC(sub_003AA08A) { (void)base; Done(ctx); }  // stream, jmp 0x3A995A
@@ -36,14 +33,6 @@ static void GetVoiceProperties(X86Context& ctx) {
 X86_FUNC(sub_003A97CE) { (void)base; GetVoiceProperties(ctx); }  // buffer
 X86_FUNC(sub_003AA0D8) { (void)base; GetVoiceProperties(ctx); }  // stream, jmp 0x3A9AF4
 
-// Set3DVoiceData(DS3DVOICEDATA*) (voice 0x3A84BB writes the 3D settings at +0xB8): positions go through SetPosition
-X86_FUNC(sub_003A981C) { (void)base; Done(ctx); }  // buffer
-X86_FUNC(sub_003AA0DD) { (void)base; Done(ctx); }  // stream, jmp 0x3A9B46
-
-// Use3DVoiceData(BOOL) (voice 0x3A85EC sets bit 0 of the settings flags byte +0xB): makes the APU take XACT's 3D
-// voice data, which the host mixer has none of. XACT 0x3D34AD calls it after SetOutputBuffer.
-X86_FUNC(sub_003A986A) { (void)base; Done(ctx); }  // buffer
-X86_FUNC(sub_003AA0E2) { (void)base; Done(ctx); }  // stream, jmp 0x3A9B98
 
 // XACT computes 3D voice data in software with 0x3AC3BE (XACT 0x3D30FB, through the thunk 0x3AC6DF), which calls the
 // HRTF table at 0x3CD868 that DirectSoundUseFullHRTF fills. The host's DirectSoundUseFullHRTF only returns, so the
@@ -146,3 +135,54 @@ X86_FUNC(sub_003D2A6C) {
     sub_003A8F15(ctx, base);
     ctx.eax = result;
 }
+
+// Pitch: the host mixer has a frequency (Hz) per voice.
+namespace {
+
+// a host stdcall function of (object, value), called from a hook; returns its eax
+uint32_t CallHost(X86Context& ctx, uint8_t* base, void (*fn)(X86Context&, uint8_t*), uint32_t object, uint32_t value) {
+    uint32_t saved = ctx.eax;
+    X86_PUSH32(value);
+    X86_PUSH32(object);
+    X86_PUSH32(0);  // the host's Return pops this
+    fn(ctx, base);
+    uint32_t result = ctx.eax;
+    ctx.eax = saved;
+    return result;
+}
+
+// SetPitch takes round(4096 * log2(Hz / 48000)), as XAudioCalculatePitch 0x3A7B17 makes it from a frequency
+uint32_t PitchToFrequency(int32_t pitch) { return uint32_t(std::lround(48000.0 * std::exp2(pitch / 4096.0))); }
+
+}  // namespace
+
+X86_EXTERN_FUNC(sub_003ABCA2);  // the host's IDirectSoundBuffer_SetFrequency
+X86_EXTERN_FUNC(sub_003AB69D);  // the host's CDirectSoundStream_SetFrequency
+
+// SetPitch(pitch) (voice 0x3A83E9), from XACT 0x3D2C2C and 0x3D2C37 for its pitch and variation
+X86_FUNC(sub_003A95FA) {  // CDirectSoundBuffer method, the buffer is the object + 0x1C
+    uint32_t object = R32(ctx.esp + 4);
+    if (object) CallHost(ctx, base, sub_003ABCA2, object + 0x1C, PitchToFrequency(int32_t(R32(ctx.esp + 8))));
+    Done(ctx);
+}
+X86_FUNC(sub_003AA085) {  // IDirectSoundStream_SetPitch, jmp 0x3A98B6
+    uint32_t stream = R32(ctx.esp + 4);
+    if (stream) CallHost(ctx, base, sub_003AB69D, stream, PitchToFrequency(int32_t(R32(ctx.esp + 8))));
+    Done(ctx);
+}
+
+// Set3DVoiceData(DS3DVOICEDATA*) (voice 0x3A84BB writes the 3D settings at +0xB8), from XACT's 3D update 0x3D31A2 and
+// 0x3D31AD on a 3D submix. The HRTF, Doppler and I3DL2 part has no use on the host mixer; the distance and cone
+// volumes in it go to the sounds that play through the submix (src/game/xact_routing.cpp).
+void XactSubmix3D(X86Context& ctx, uint8_t* base, uint32_t submix, uint32_t data);
+X86_FUNC(sub_003A981C) {  // CDirectSoundBuffer method, the buffer is the object + 0x1C
+    uint32_t object = R32(ctx.esp + 4), data = R32(ctx.esp + 8);
+    if (object && data) XactSubmix3D(ctx, base, object + 0x1C, data);
+    Done(ctx);
+}
+X86_FUNC(sub_003AA0DD) { (void)base; Done(ctx); }  // stream, jmp 0x3A9B46
+
+// Use3DVoiceData(BOOL) (voice 0x3A85EC sets bit 0 of the settings flags byte +0xB): makes the APU take XACT's 3D
+// voice data, which the host mixer has none of. XACT 0x3D34AD calls it after SetOutputBuffer.
+X86_FUNC(sub_003A986A) { (void)base; Done(ctx); }  // buffer
+X86_FUNC(sub_003AA0E2) { (void)base; Done(ctx); }  // stream, jmp 0x3A9B98

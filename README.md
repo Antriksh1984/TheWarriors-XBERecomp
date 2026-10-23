@@ -27,11 +27,15 @@ The game recompiles, boots through its XDK initialisation and renders gameplay w
 - The MCPX APU sample counter that XACT reads directly, kept running in `src/common/apu_clock.cpp`.
 - XACT streamed cues (cutscene dialogue and music) wait until they are started and stay stopped once stopped, so skipped cutscenes no longer keep playing their audio.
 - `D3DDevice_DrawIndexedVerticesUP`, which the SDK has no version of, drawn through the host's `DrawVerticesUP` (`src/game/d3d.cpp`).
+- Sound pitch and pitch variation, carried over to the host mixer's frequency.
+- XACT's 3D sounds (punches, footsteps, voices, ambience) play through their submix's speaker bins at its distance and cone volume; the host mixes no voice into another, so they had only reached the reverb send (`src/game/xact_routing.cpp`).
+- The Rockstar logo can be skipped like the other boot movies (`src/game/movies.cpp`).
 
 ### Known issues
-- Pitch, LFO, cone and XACT 3D voice data are ignored by the host mixer, so some sounds may be flatter than on the Xbox.
+- 3D sounds are attenuated by distance but not panned: the HRTF positioning, Doppler, LFO and I3DL2 reverb are not reproduced.
 - `IDirectSoundBuffer_PlayEx` and `PauseEx` start and pause at once, without their time stamps.
 - The game's Bink version differs from the one the SDK knows, so Bink movies do not get the SDK's frame rate fix.
+- The game runs at 30 FPS, its own frame pacing; nothing unlocks it yet.
 - Only the opening missions have been played so far.
 
 ## Building
