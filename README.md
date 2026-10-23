@@ -25,12 +25,14 @@ The game recompiles, boots through its XDK initialisation and renders gameplay w
 - XDK symbols the signature scan could not resolve on a retail disc, found by hand and documented in `config/game.toml`.
 - DirectSound exports the SDK has no version of (pitch, LFO, cones, 3D voice data, sound streams made through `IDirectSound`), handled in `src/game/dsound.cpp`.
 - The MCPX APU sample counter that XACT reads directly, kept running in `src/common/apu_clock.cpp`.
+- XACT streamed cues (cutscene dialogue and music) wait until they are started and stay stopped once stopped, so skipped cutscenes no longer keep playing their audio.
+- `D3DDevice_DrawIndexedVerticesUP`, which the SDK has no version of, drawn through the host's `DrawVerticesUP` (`src/game/d3d.cpp`).
 
 ### Known issues
 - Pitch, LFO, cone and XACT 3D voice data are ignored by the host mixer, so some sounds may be flatter than on the Xbox.
-- `IDirectSoundBuffer_PlayEx` and `PauseEx` have no host version yet.
+- `IDirectSoundBuffer_PlayEx` and `PauseEx` start and pause at once, without their time stamps.
 - The game's Bink version differs from the one the SDK knows, so Bink movies do not get the SDK's frame rate fix.
-- Controller input, audio and progression past the opening have not been tested.
+- Only the opening missions have been played so far.
 
 ## Building
 

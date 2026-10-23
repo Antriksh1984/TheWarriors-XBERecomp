@@ -96,3 +96,53 @@ X86_FUNC(sub_003ABF45) { (void)base; Ignore<4>(ctx); }  // SetConeAngles(in, out
 // IDirectSoundBuffer_SetNotificationPositions(count, positions) at 0x3AA00C: 0x3A8C13 hands both to the buffer data
 // at +0x1C, then updates the voice at +0x20. The host mixer signals no notification events.
 X86_FUNC(sub_003AA00C) { (void)base; Ignore<3>(ctx); }
+
+// IDirectSoundBuffer_PlayEx(time low, time high, flags) at 0x3A9EC4 and PauseEx(time low, time high, pause) at
+// 0x3A9F40, beside Play and Pause, pop 16. The host mixer starts and pauses at once, so the time stamp goes and the
+// host's Play(0, 0, flags) 0x3A9EA0 and Pause(pause) 0x3A9F24 do the rest.
+X86_EXTERN_FUNC(sub_003A9EA0);
+X86_EXTERN_FUNC(sub_003A9F24);
+X86_FUNC(sub_003A9EC4) {
+    uint32_t ret = R32(ctx.esp), buffer = R32(ctx.esp + 4), flags = R32(ctx.esp + 16);
+    ctx.esp += 20;
+    X86_PUSH32(flags);
+    X86_PUSH32(0);
+    X86_PUSH32(0);
+    X86_PUSH32(buffer);
+    X86_PUSH32(ret);
+    sub_003A9EA0(ctx, base);
+}
+X86_FUNC(sub_003A9F40) {
+    uint32_t ret = R32(ctx.esp), buffer = R32(ctx.esp + 4), pause = R32(ctx.esp + 16);
+    ctx.esp += 20;
+    X86_PUSH32(pause);
+    X86_PUSH32(buffer);
+    X86_PUSH32(ret);
+    sub_003A9F24(ctx, base);
+}
+
+// IDirectSoundStream_Pause(stream, pause) at 0x3AA0A3, jmp CDirectSoundStream_Pause 0x3A8F15. XACT prepares a
+// streamed cue with DSSTREAMPAUSE_PAUSENOACTIVATE (3) at 0x3D37C3, fills it, and starts it with 0 at 0x3D2C7E. The
+// host only takes 1 as paused, so prepared cutscene and music streams played as soon as their first packets came
+// and kept going after the game moved on. 3 holds the stream as 1 does.
+X86_EXTERN_FUNC(sub_003A8F15);
+X86_FUNC(sub_003AA0A3) {
+    if (R32(ctx.esp + 8) == 3) W32(ctx.esp + 8, 1);
+    sub_003A8F15(ctx, base);
+}
+
+// XACT's voice Stop(immediate) 0x3D2A6C (thiscall, the voice keeps its stream at +0x20) flushes a stream with FlushEx.
+// The host's flush also clears the stream's pause, so packets XACT still had on the way, or the next cue's prefetch,
+// played at once: a skipped cutscene's audio went on over the game. A stopped stream waits for XACT's Pause(0) again.
+X86_EXTERN_FUNC(__imp__sub_003D2A6C);
+X86_FUNC(sub_003D2A6C) {
+    uint32_t stream = R32(ctx.ecx + 0x20);
+    __imp__sub_003D2A6C(ctx, base);
+    if (!stream) return;
+    uint32_t result = ctx.eax;
+    X86_PUSH32(1);
+    X86_PUSH32(stream);
+    X86_PUSH32(0);  // the host's Return pops this
+    sub_003A8F15(ctx, base);
+    ctx.eax = result;
+}
