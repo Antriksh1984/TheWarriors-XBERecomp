@@ -278,20 +278,6 @@ XPP_MemoryUnitType          = 0
 # convention: a register (eax ebx ecx edx esi edi ebp) or "stack" for the next stack slot, which the callee pops
 [abi]
 
-# XACT's sound voices play through their 3D submix's speaker bins (src/game/xact_routing.cpp)
-[[hook]]
-at = 0x3D2CB7  # SetMixBins on a buffer
-call = "XactRecordBins"
-[[hook]]
-at = 0x3D2CC2  # SetMixBins on a stream
-call = "XactRecordBins"
-[[hook]]
-at = 0x3D352B  # the sound buffer's own bins, edi the XACT voice it outputs to
-call = "XactRouteToSubmix"
-[[hook]]
-at = 0x3D351D  # the sound stream's own bins
-call = "XactRouteToSubmix"
-
 # the mouse turns the play camera by its own angle (src/game/camera.cpp)
 [[hook]]
 at = 0x3F15E  # the right stick's yaw in 0x3EEC0, past the camera mode's checks

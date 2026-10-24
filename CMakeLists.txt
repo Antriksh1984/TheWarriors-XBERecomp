@@ -30,6 +30,9 @@ endif()
 
 include(${SDK}/cmake/XbeRecomp.cmake)
 
+# DirectSound is the SDK's with what XACT needs in this game (src/audio/dsound.cpp), built in place of the SDK's
+list(REMOVE_ITEM XBE_RUNTIME_SOURCES ${SDK}/runtime/xdk/dsound.cpp)
+
 file(GLOB XBE_HOST_SOURCES CONFIGURE_DEPENDS src/*/*.cpp)
 list(FILTER XBE_HOST_SOURCES EXCLUDE REGEX "/src/game/")
 
