@@ -150,8 +150,7 @@ In menus the left mouse button selects, the right button backs out and the wheel
 ## Known issues
 - Only the opening missions have been played so far. Later missions may crash or show broken effects.
 - The game runs at 30 FPS, its own frame pacing; nothing unlocks it yet. The camera follows the mouse at that rate too.
-- 3D sounds are attenuated by distance but not panned: the HRTF positioning, Doppler, LFO and I3DL2 reverb are not reproduced.
-- `IDirectSoundBuffer_PlayEx` and `PauseEx` start and pause at once, without their time stamps.
+- 3D sounds are panned by their direction with an interaural delay and a head shadow model, not the console's own HRTF filters. LFOs, the pitch and filter envelope and the I3DL2 occlusion filters are not reproduced.
 - The game's Bink version differs from the one the SDK knows, so Bink movies do not get the SDK's frame rate fix.
 - Icons the HUD draws as pictures (the stick by the minimap) still show the controller, and prompts in languages other than English name the pad in words.
 - Only the NTSC retail release is supported.
@@ -159,37 +158,16 @@ In menus the left mouse button selects, the right button backs out and the wheel
 ## Progress
 - Recompiled from the NTSC retail XBE (XDK 5849, sha1 `fe246a74501cd10d2ce89ca5dbda5080d2b2edcc`).
 - XDK symbols the signature scan could not resolve on a retail disc, found by hand and documented in `config/game.toml`.
-- DirectSound exports the SDK has no version of (pitch, LFO, cones, 3D voice data, sound streams made through `IDirectSound`), handled in `src/game/dsound.cpp`.
+- DirectSound is the SDK's with what XACT relies on in this game, built in its place (`src/audio/dsound.cpp`): mix-in buffers, so XACT's 3D sounds play through their submixes as on the console; XACT's 3D voice data, with its distance, cone, front, rear, centre and reverb levels, Doppler pitch and the direction that pans each sound between the ears; amplitude envelopes, and stops that let them release; the library's stream pause and flush rules; and the voice properties XACT reads back when it moves a sound to another submix.
+- DirectSound exports the SDK has no name for (pitch, LFO, cones, 3D voice data, output buffers, sound streams made through `IDirectSound`), handed to it from `src/game/dsound.cpp`.
 - The MCPX APU sample counter that XACT reads directly, kept running in `src/common/apu_clock.cpp`.
-- XACT streamed cues (cutscene dialogue and music) wait until they are started and stay stopped once stopped, so skipped cutscenes no longer keep playing their audio.
+- XACT's streamed cues (cutscene dialogue and music) wait until they are started and stay stopped once stopped, so skipped cutscenes no longer keep playing their audio, and the line after a stopped one is no longer held silent (which also slowly used up XACT's voices).
 - `D3DDevice_DrawIndexedVerticesUP`, which the SDK has no version of, drawn through the host's `DrawVerticesUP` (`src/game/d3d.cpp`).
 - Sound pitch and pitch variation, carried over to the host mixer's frequency.
-- XACT's 3D sounds (punches, footsteps, voices, ambience) play through their submix's speaker bins at its distance and cone volume; the host mixes no voice into another, so they had only reached the reverb send (`src/game/xact_routing.cpp`).
 - The Rockstar logo can be skipped like the other boot movies (`src/game/movies.cpp`).
 - Keyboard and mouse for player 1, alongside a controller on the same port (`src/game/kbm.cpp`). The mouse turns the camera itself by its own angle, as on PC, through the camera's yaw and pitch speeds (`src/game/camera.cpp`), and stands in for the right stick where the camera does not read it (the gang command menu).
 - Button prompts show the keys bound to them while the keyboard and mouse are in use, and the controller's buttons again once it is used (`src/game/prompts.cpp`): the text's button icons, the words that name the pad ("click the left thumbstick", "pull and release both triggers") and the title screen's PRESS START, which becomes PRESS ANY KEY. They follow rebinding at once.
 - A settings panel on F10 (`src/game/menu.cpp`).
-
-## Building from source
-Only needed to work on the port; to play, use a [release](#playing-the-alpha).
-
-### 1. Clone the Repository
-Clone this repository with its SDK submodule using [Git](https://git-scm.com/):
-```
-git clone --recursive https://github.com/Antriksh1984/TheWarriors-XBERecomp.git
-```
-
-### 2. Add the Required Game Files
-Place your game in the `assets` folder, as in [step 3](#3-add-your-game) above: the `.iso`, or `default.xbe` with the game's folders (`audio`, `bik` and the `.wad` files) beside it. The build itself reads `assets\default.xbe`, so extract it from the image if you only have the `.iso`.
-
-### 3. Install Dependencies
-Install Visual Studio 2022 (or its Build Tools) with **Desktop development with C++**, **C++ Clang tools for Windows** and **C++ CMake tools for Windows** (`build.bat` offers to add the last two).
-
-### 4. Build the Project
-Run `build.bat`. The first build recompiles the game and takes a while. The exe is written to `out\build\release`.
-
-### 5. Package a Release
-Run `release.bat` (needs [7-Zip](https://www.7-zip.org/) on the `PATH`). It writes `Warriors.zip` with the exe, the bundled compiler and an empty `assets` folder, and no game code.
 
 ## Credits
 
