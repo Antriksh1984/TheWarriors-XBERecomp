@@ -163,6 +163,11 @@ std::atomic<bool> g_captured{false};
 std::atomic<uint64_t> g_camera_ms{0};
 std::atomic<bool> g_stick_camera{false};
 std::atomic<uint64_t> g_kbm_ms{0}, g_pad_ms{0};
+std::atomic<uint64_t> g_pad_seen_ms{0};  // a controller was plugged in, on any port
+std::atomic<uint64_t> g_title_ms{0};     // the title screen's prompt was drawn
+constexpr uint64_t kTitleMs = 500;
+// with no controller seen for this long the prompts show keys whatever was used last
+constexpr uint64_t kNoPadMs = 2000;
 
 std::mutex g_mouse_lock;
 long g_dx = 0, g_dy = 0;  // counts not taken by a camera yet
@@ -329,6 +334,7 @@ void Keys(input::Pad& p) {
     bool play = InPlay();
     bool menu_mouse = g_settings.menu_mouse && !play;
     if (Held(kRage)) Press(p, kLT), Press(p, kRT);
+    if (NowMs() - g_title_ms < kTitleMs && PressedKey()) Press(p, kStart);
     for (int c = 0; c < 16; c++) {
         for (int slot = 0; slot < 2; slot++) {
             int vk = g_bind[c][slot];
@@ -597,6 +603,7 @@ bool Message(void* hwnd, uint32_t msg, uintptr_t wp, intptr_t lp, intptr_t* resu
 
 void Pad(int port, input::Pad& p) {
     if (p.connected) {
+        g_pad_seen_ms = NowMs();
         RemapPad(p);
         Deadzone(p.lx, p.ly, g_settings.stick_deadzone);
         Deadzone(p.rx, p.ry, g_settings.stick_deadzone);
@@ -670,5 +677,30 @@ void CameraSeen(bool stick) {
 bool InPlay() { return NowMs() - g_camera_ms < kPlayMs; }
 bool KeyboardActive() { return g_kbm_ms > g_pad_ms; }
 bool TestMode() { return g_test; }
+
+void TitlePrompt() { g_title_ms = NowMs(); }
+
+bool PromptKeys() { return g_settings.enabled && (KeyboardActive() || NowMs() - g_pad_seen_ms > kNoPadMs); }
+
+std::string PromptKey(int control) {
+    int vk = g_bind[control][0] ? g_bind[control][0].load() : g_bind[control][1].load();
+    switch (vk) {
+        case 0: return {};
+        case VK_LBUTTON: return "LMB";
+        case VK_RBUTTON: return "RMB";
+        case VK_MBUTTON: return "MMB";
+        case VK_XBUTTON1: return "Mouse 4";
+        case VK_XBUTTON2: return "Mouse 5";
+        case VK_LSHIFT: case VK_RSHIFT: return "Shift";
+        case VK_LCONTROL: case VK_RCONTROL: return "Ctrl";
+        case VK_LMENU: case VK_RMENU: return "Alt";
+        case VK_ESCAPE: return "Esc";
+        case VK_UP: return "Up";
+        case VK_DOWN: return "Down";
+        case VK_LEFT: return "Left";
+        case VK_RIGHT: return "Right";
+        default: return NameOf(vk, true);
+    }
+}
 
 }  // namespace warriors::kbm

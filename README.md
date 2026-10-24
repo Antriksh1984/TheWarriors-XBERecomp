@@ -31,6 +31,7 @@ The game recompiles, boots through its XDK initialisation and renders gameplay w
 - XACT's 3D sounds (punches, footsteps, voices, ambience) play through their submix's speaker bins at its distance and cone volume; the host mixes no voice into another, so they had only reached the reverb send (`src/game/xact_routing.cpp`).
 - The Rockstar logo can be skipped like the other boot movies (`src/game/movies.cpp`).
 - Keyboard and mouse for player 1, alongside a controller on the same port (`src/game/kbm.cpp`). The mouse turns the camera itself by its own angle, as on PC, through the camera's yaw and pitch speeds (`src/game/camera.cpp`), and stands in for the right stick where the camera does not read it (the gang command menu). In menus the left button selects, the right button backs out and the wheel scrolls.
+- Button prompts show the keys bound to them while the keyboard and mouse are in use, and the controller's buttons again once it is used (`src/game/prompts.cpp`): the text's button icons, the words that name the pad ("click the left thumbstick", "pull and release both triggers") and the title screen's PRESS START, which becomes PRESS ANY KEY. They follow rebinding at once.
 - A settings panel on F10 (`src/game/menu.cpp`): mouse sensitivity, invert and smoothing, every key binding, the controller's camera speed, invert, dead zone, vibration and button layout, and the display mode, resolution, frame rate cap, VSync, render scale and anisotropic filtering.
 
 ### Default keys
@@ -58,7 +59,7 @@ The game recompiles, boots through its XDK initialisation and renders gameplay w
 - `IDirectSoundBuffer_PlayEx` and `PauseEx` start and pause at once, without their time stamps.
 - The game's Bink version differs from the one the SDK knows, so Bink movies do not get the SDK's frame rate fix.
 - The game runs at 30 FPS, its own frame pacing; nothing unlocks it yet. The camera follows the mouse at that rate too.
-- The game's button prompts still show the controller's buttons.
+- Icons the HUD draws as pictures (the stick by the minimap) still show the controller, and prompts in languages other than English name the pad in words.
 - Only the opening missions have been played so far.
 
 ## Building

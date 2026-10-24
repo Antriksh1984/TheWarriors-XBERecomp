@@ -299,3 +299,8 @@ call = "CameraYawStick"
 [[hook]]
 at = 0x3F393  # the right stick's pitch
 call = "CameraPitchStick"
+
+# the text's button tags show the keys bound to them while the keyboard and mouse are in use (src/game/prompts.cpp)
+[[hook]]
+at = 0xE2F05  # after sprintf(word, "%c", glyph) for a button tag in the text parser 0xE2580, edi the tag
+call = "PromptGlyph"

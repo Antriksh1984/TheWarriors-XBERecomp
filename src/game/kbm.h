@@ -75,4 +75,11 @@ bool InPlay();  // a camera took the mouse within the last moments
 bool KeyboardActive();  // the keyboard or mouse was used after the controller's last new press
 bool TestMode();        // XBE_KBM_TEST: driven by a script, diagnostics logged
 
+// the game's button prompts (prompts.cpp): keys, while the keyboard and mouse were used last or no controller is
+// plugged in, and the short name of the key bound to a control, empty for none
+bool PromptKeys();
+std::string PromptKey(int control);
+// the title screen's "press any key" is up: any key or mouse button presses Start
+void TitlePrompt();
+
 }  // namespace warriors::kbm
