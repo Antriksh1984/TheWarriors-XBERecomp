@@ -87,9 +87,9 @@ Run `Warriors.exe`. The first time, a progress window appears while the port tur
 This happens once. Later starts go straight into the game. A new release of the port builds again on its first start.
 
 ### 5. Play
-The game starts in a borderless window on your main display. Press **F10** at any time for the settings panel: display mode, resolution, frame rate cap, VSync, render scale, anisotropic filtering, mouse sensitivity, every key binding, and the controller's camera speed, dead zone, vibration and button layout.
+The game starts in a borderless window on your main display. On a widescreen display it runs in its own 1280x720 widescreen mode, as on a 720p TV; on a 4:3 display it keeps 480p. Press **F10** at any time for the settings panel: display mode, resolution, VSync, render scale, anisotropic filtering, MSAA anti-aliasing, mouse sensitivity, every key binding, and the controller's camera speed, dead zone, vibration and button layout.
 
-With a controller it plays as on the Xbox. With the keyboard and mouse, the mouse turns the camera and the [default keys](#default-keys) are below. The button prompts in the game show your keys while you use the keyboard and mouse, and the controller's buttons once you pick up the pad.
+With a controller it plays as on the Xbox. With the keyboard and mouse, the mouse turns the camera and the [default keys](#default-keys) are below. The button prompts in the game show your keys while you use the keyboard and mouse, and the controller's buttons once you pick up the pad. The stick minigames (picking a lock, taking a car stereo) are played by circling the mouse, and a bar on screen stands in for the controller's vibration when you look for the lock's sweet spot.
 
 ### Files the port writes
 All of these sit beside `Warriors.exe`:
@@ -152,8 +152,30 @@ In menus the left mouse button selects, the right button backs out and the wheel
 - The game runs at 30 FPS, its own frame pacing; nothing unlocks it yet. The camera follows the mouse at that rate too.
 - 3D sounds are panned by their direction with an interaural delay and a head shadow model, not the console's own HRTF filters. LFOs, the pitch and filter envelope and the I3DL2 occlusion filters are not reproduced.
 - The game's Bink version differs from the one the SDK knows, so Bink movies do not get the SDK's frame rate fix.
-- Icons the HUD draws as pictures (the stick by the minimap) still show the controller, and prompts in languages other than English name the pad in words.
+- The stick the HUD draws as a picture by the minimap still shows the controller, and prompts in languages other than English name the pad in words.
+- Things the game times by presented frames rather than by its world clock may run faster than on the console. The lock pick is fixed; other HUD effects and minigames have not all been checked.
 - Only the NTSC retail release is supported.
+
+## Changelog
+
+### v0.2.0 alpha
+- **Audio rework.** DirectSound now behaves the way the game's XACT sound engine expects (`src/audio/dsound.cpp`):
+  - 3D sounds (punches, footsteps, voices, ambience) play through their submixes as on the console, at their distance, cone, front, rear, centre and reverb levels, with Doppler pitch.
+  - Each 3D sound is panned by its direction, with an interaural delay and a head shadow.
+  - Amplitude envelopes, and stops that let a sound release instead of cutting it off.
+  - Fixed a cause of dialogue going silent after a stopped line, which also slowly used up XACT's voices so that sounds went missing ([#1](https://github.com/Antriksh1984/TheWarriors-XBERecomp/issues/1), [#2](https://github.com/Antriksh1984/TheWarriors-XBERecomp/issues/2)).
+  - A skipped cutscene's audio stays stopped.
+- **720p widescreen.** On a widescreen display the game uses its own 1280x720 mode with its widescreen framing, in place of a 640x480 frame stretched to 16:9.
+- **MSAA.** Anti-aliasing (off, 2x, 4x or 8x) in the F10 display settings.
+- The frame rate cap is gone from F10, since the game world steps at 30 FPS whatever it is set to. VSync stays.
+- **Mouse minigames.** The lock pick and car stereo minigames play with the mouse, with a bar showing the lock pick's vibration while the keyboard and mouse are in use ([#3](https://github.com/Antriksh1984/TheWarriors-XBERecomp/issues/3)).
+- The lock pick's tumblers turn at the console's speed. They spun twice as fast or more, and the third could not be stopped.
+- **Prompts.** "Click the left thumbstick" reads "Press [C]", the right stick's click names its key, the HUD's action icon over people and objects shows the action key, and the prompts to alternate the triggers name each key.
+
+### v0.1.0 alpha
+- First public release: the game recompiled to native code, rendered with Direct3D 12 and played through XAudio2, run from a disc image or the extracted files.
+- Controller support, keyboard and mouse with native mouse-look, keys shown in the game's button prompts, and the F10 settings panel.
+- Cutscene audio fixes, pitch, and a skippable Rockstar logo.
 
 ## Progress
 - Recompiled from the NTSC retail XBE (XDK 5849, sha1 `fe246a74501cd10d2ce89ca5dbda5080d2b2edcc`).
@@ -163,11 +185,13 @@ In menus the left mouse button selects, the right button backs out and the wheel
 - The MCPX APU sample counter that XACT reads directly, kept running in `src/common/apu_clock.cpp`.
 - XACT's streamed cues (cutscene dialogue and music) wait until they are started and stay stopped once stopped, so skipped cutscenes no longer keep playing their audio, and the line after a stopped one is no longer held silent (which also slowly used up XACT's voices).
 - `D3DDevice_DrawIndexedVerticesUP`, which the SDK has no version of, drawn through the host's `DrawVerticesUP` (`src/game/d3d.cpp`).
+- The game's own 720p widescreen mode on a widescreen display, through the SDK reporting a 720p TV to a title that asks for it, and MSAA for the screen sized render targets.
 - Sound pitch and pitch variation, carried over to the host mixer's frequency.
 - The Rockstar logo can be skipped like the other boot movies (`src/game/movies.cpp`).
 - Keyboard and mouse for player 1, alongside a controller on the same port (`src/game/kbm.cpp`). The mouse turns the camera itself by its own angle, as on PC, through the camera's yaw and pitch speeds (`src/game/camera.cpp`), and stands in for the right stick where the camera does not read it (the gang command menu).
 - The stick minigames play with the mouse: where the world runs with no camera to turn (picking a lock, unscrewing a car stereo), the mouse holds both sticks where it pushes them and circles them round the rim, and while the keyboard and mouse are in use a bar on screen shows the vibration the lock pick is found by.
-- Button prompts show the keys bound to them while the keyboard and mouse are in use, and the controller's buttons again once it is used (`src/game/prompts.cpp`): the text's button icons, the words that name the pad ("click the left thumbstick", "pull and release both triggers") and the title screen's PRESS START, which becomes PRESS ANY KEY. They follow rebinding at once.
+- The lock pick's tumblers turn by the console's 30 steps a second for the real time passed (`src/game/lockpick.cpp`), as the port presents more frames than the console's 30.
+- Button prompts show the keys bound to them while the keyboard and mouse are in use, and the controller's buttons again once it is used (`src/game/prompts.cpp`): the text's button icons, the HUD's action icon, the words that name the pad ("click the left thumbstick", "pull and release both triggers", "alternate pulling the right and left trigger"), even where the help text colours them, and the title screen's PRESS START, which becomes PRESS ANY KEY. They follow rebinding at once.
 - A settings panel on F10 (`src/game/menu.cpp`).
 
 ## Credits
