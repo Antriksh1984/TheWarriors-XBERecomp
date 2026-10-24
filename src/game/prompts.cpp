@@ -38,6 +38,9 @@ struct Tag {
 // L3 white, L2 the left trigger, L1 the right, R2 the left thumb, R3 the right
 constexpr Tag kTags[] = {
     {33, 0x9F, kbm::kX},      {34, 0x9D, kbm::kB},      {35, 0x96, kbm::kY},       {37, 0x9E, kbm::kA},
+    // <ST>: the action button the HUD shows over who can be acted on ("<MONEYFONT><ST></MONEYFONT> Uncuff"), 'n' of
+    // the money font's icons
+    {36, 0x6E, kbm::kY},
     {38, 0x97, kbm::kStart},  {39, 0x93, kbm::kBack},   {40, 0x9C, kbm::kBlack},   {41, 0x94, kbm::kLThumb},
     {42, 0x92, kbm::kRThumb}, {43, 0xA0, kbm::kRT},     {44, 0x95, kbm::kLT},      {45, 0x91, kbm::kWhite},
     {46, 0x9B, kbm::kUp},     {47, 0x99, kbm::kDown},   {48, 0x9A, kbm::kLeft},    {49, 0x98, kbm::kRight},
@@ -46,13 +49,16 @@ constexpr Tag kTags[] = {
     {55, kAnyGlyph, kbm::kMoveUp},
 };
 
-constexpr uint32_t kFont = 0x13C;  // the text's font while a word is drawn; -1 the text's own
+// While a word is drawn: the font's icon set (<MONEYFONT> 0xD0100 or 0xB, <BGFONT> 0xB), -1 for its letters. The
+// money font's set is monospaced and has no letters, so a key name is drawn with -1 like the text around it.
+constexpr uint32_t kIconSet = 0x13C;
 constexpr size_t kMaxName = 24;
+// the default configuration's icons in the font, 0x91 to 0xA0
+constexpr uint8_t kFirstIcon = 0x91, kLastIcon = 0xA0;
 
 }  // namespace
 
-// 0xE2F05: sprintf's arguments still pushed, word at [esp], the glyph at [esp+8]; edi the tag, bl set inside
-// <BGFONT>, where the icon is drawn in font 0xB on a circle
+// 0xE2F05: sprintf's arguments still pushed, word at [esp], the glyph at [esp+8]; edi the tag
 void PromptGlyph(X86Context& ctx, uint8_t* base) {
     (void)base;
     if (!kbm::PromptKeys()) return;
@@ -65,8 +71,9 @@ void PromptGlyph(X86Context& ctx, uint8_t* base) {
     if (key.empty() || key.size() > kMaxName) return;
     std::string text = "[" + key + "]";
     std::memcpy(HostPtr(word), text.c_str(), text.size() + 1);
-    // the icon font has no letters: the name is drawn in the text's font
-    if (ctx.ebx & 0xFF) W32(ctx.esi + kFont, 0xFFFFFFFF);
+    // the icon set has no letters: the name is drawn in the font's own; </MONEYFONT> and the word after <BGFONT> put
+    // back -1 themselves
+    W32(ctx.esi + kIconSet, 0xFFFFFFFF);
 }
 
 // The words
@@ -131,6 +138,26 @@ void Rage(std::string& s) {
     }
 }
 
+// A stick clicked is its button: "Click the left thumbstick" becomes "Press [C]". The help text colours the stick's
+// name ("Click the <COLOR B2B2B2FF>left thumbstick<COLOR ...> and select Hold Up"), so tags between are kept.
+void Click(std::string& s, std::string_view stick, const std::string& key) {
+    if (key.empty()) return;
+    for (size_t at = s.find("lick the "); at != std::string::npos; at = s.find("lick the ", at + 1)) {
+        if (at == 0 || (s[at - 1] != 'C' && s[at - 1] != 'c')) continue;
+        size_t name = at + 9;
+        while (name < s.size() && s[name] == '<') {
+            size_t close = s.find('>', name);
+            if (close == std::string::npos) break;
+            name = close + 1;
+        }
+        if (!At(s, name, stick)) continue;
+        size_t start = at - 1;
+        s.replace(name, stick.size(), key);
+        s.replace(start, 10, s[start] == 'C' ? "Press " : "press ");
+        at = start;
+    }
+}
+
 // the text with the pad's words as keys; title: it is the title screen's prompt
 std::string Rewrite(std::string s, bool& title) {
     title = false;
@@ -147,18 +174,25 @@ std::string Rewrite(std::string s, bool& title) {
         Replace(s, "the BACK button", Key(kbm::kBack));
     }
     // the gang's commands
-    Replace(s, "Click the left thumbstick", "Press " + Key(kbm::kLThumb));
-    Replace(s, "click the left thumbstick", "press " + Key(kbm::kLThumb));
+    Click(s, "left thumbstick", Key(kbm::kLThumb));
+    Click(s, "right thumbstick", Key(kbm::kRThumb));
     Replace(s, "Click to bring", Key(kbm::kLThumb) + " brings");
     Replace(s, "with the right thumbstick", "with the mouse");
     Replace(s, "the right thumbstick", "the mouse");
     Replace(s, "right thumbstick", "mouse");
     Replace(s, "the left thumbstick", MoveKeys());
     Replace(s, "left thumbstick", MoveKeys());
-    // the triggers
+    // the triggers: both at once is rage, one then the other is each key ("Quickly alternate pulling the right and
+    // left trigger to free your arrested Warriors")
     Rage(s);
-    Replace(s, "right and left triggers", Key(kbm::kRage));
-    Replace(s, "right and left trigger", Key(kbm::kRage));
+    std::string both = Key(kbm::kRT).empty() || Key(kbm::kLT).empty() ? std::string()
+                                                                      : Key(kbm::kRT) + " and " + Key(kbm::kLT);
+    Replace(s, "alternate pulling the right and left triggers", "alternate pressing " + both);
+    Replace(s, "alternate pulling the right and left trigger", "alternate pressing " + both);
+    Replace(s, "the right and left triggers", both);
+    Replace(s, "the right and left trigger", both);
+    Replace(s, "right and left triggers", both);
+    Replace(s, "right and left trigger", both);
     Replace(s, "the right trigger", Key(kbm::kRT));
     Replace(s, "the left trigger", Key(kbm::kLT));
     Replace(s, "right trigger", Key(kbm::kRT));
@@ -227,19 +261,58 @@ void WithKeys(X86Context& ctx, uint8_t* base) {
     for (int i = 0; i < 3; i++) W32(obj + kFields[i], was[i]);
 }
 
-// a run of text drawn or measured whoever asks, the front end's menus too: its string and length (kWhole for all)
-template <void (*Original)(X86Context&, uint8_t*), uint32_t kString, uint32_t kLength>
+// the default configuration's button icons, as the tags draw them
+int GlyphControl(uint8_t glyph) {
+    if (glyph < kFirstIcon || glyph > kLastIcon) return -1;
+    for (const Tag& t : kTags)
+        if (t.glyph == glyph) return t.control;
+    return -1;
+}
+
+// A run that is one button icon, which the HUD draws itself ("<Y> Uncuff" over a gang member, "Click to bring up
+// commands"): the key's name in its place, in the text's font, as the tags get it.
+uint32_t GlyphRun(uint32_t str, uint32_t len, uint32_t* out_len) {
+    if (len != 1 && !(len == kWhole && G<uint8_t>(str) && !G<uint8_t>(str + 1))) return 0;
+    int control = GlyphControl(G<uint8_t>(str));
+    std::string key = control < 0 ? std::string() : Key(control);
+    if (key.empty()) return 0;
+    *out_len = uint32_t(key.size());
+    std::lock_guard lock(g_lock);
+    uint32_t& copy = g_copies[key];
+    if (!copy) {
+        copy = mem::AllocSystem(uint32_t(key.size() + 1));
+        if (copy) std::memcpy(HostPtr(copy), key.c_str(), key.size() + 1);
+    }
+    return copy;
+}
+
+// A run of text drawn or measured whoever asks, the front end's menus too: its string, its length (kWhole for all)
+// and its layout flags. Without kProportional each character takes a cell of the size block's width, as the HUD's
+// icon labels (the arrest struggle's trigger) are laid out: a key name in its place is laid out by its letters.
+constexpr uint32_t kProportional = 0x04;
+template <void (*Original)(X86Context&, uint8_t*), uint32_t kString, uint32_t kLength, uint32_t kFlags>
 void RunWithKeys(X86Context& ctx, uint8_t* base) {
-    uint32_t esp = ctx.esp, str = R32(esp + kString), len = R32(esp + kLength), out_len = 0;
+    uint32_t esp = ctx.esp, str = R32(esp + kString), len = R32(esp + kLength), flags = R32(esp + kFlags);
+    uint32_t out_len = 0;
     LogText("run", str, len);
-    uint32_t copy = str && kbm::PromptKeys() ? Copy(str, len, &out_len) : 0;
+    bool glyph = false;
+    uint32_t copy = 0;
+    if (str && kbm::PromptKeys()) {
+        copy = GlyphRun(str, len, &out_len);
+        glyph = copy != 0;
+        static int logged = 0;
+        if (glyph && kbm::TestMode() && logged++ < 16) LOGR("prompts: icon %02X, flags %X", G<uint8_t>(str), flags);
+        if (!copy) copy = Copy(str, len, &out_len);
+    }
     if (!copy) return Original(ctx, base);
     W32(esp + kString, copy);
     if (len != kWhole) W32(esp + kLength, out_len);
+    if (glyph) W32(esp + kFlags, flags | kProportional);
     Original(ctx, base);
     // cdecl: the arguments are the caller's, put back as they were
     W32(esp + kString, str);
     W32(esp + kLength, len);
+    W32(esp + kFlags, flags);
 }
 
 }  // namespace
@@ -248,8 +321,9 @@ X86_EXTERN_FUNC(__imp__sub_000E3B50);
 X86_FUNC(sub_000E3B50) { WithKeys<__imp__sub_000E3B50>(ctx, base); }  // draw
 X86_EXTERN_FUNC(__imp__sub_000E3CD0);
 X86_FUNC(sub_000E3CD0) { WithKeys<__imp__sub_000E3CD0>(ctx, base); }  // measure
-// (?, string, ..., length as argument 11) and (string, length, ...), cdecl
+// draw (?, string, x, y, size block, flags, font, icon set, ?, ?, length) and measure (string, length, size block,
+// flags, font, icon set), cdecl
 X86_EXTERN_FUNC(__imp__sub_00096660);
-X86_FUNC(sub_00096660) { RunWithKeys<__imp__sub_00096660, 8, 0x2C>(ctx, base); }
+X86_FUNC(sub_00096660) { RunWithKeys<__imp__sub_00096660, 8, 0x2C, 0x18>(ctx, base); }
 X86_EXTERN_FUNC(__imp__sub_000964A0);
-X86_FUNC(sub_000964A0) { RunWithKeys<__imp__sub_000964A0, 4, 8>(ctx, base); }
+X86_FUNC(sub_000964A0) { RunWithKeys<__imp__sub_000964A0, 4, 8, 0x10>(ctx, base); }
