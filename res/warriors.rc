@@ -1,0 +1,2 @@
+// the executable's icon; the SDK's windows load it as resource 1
+1 ICON "warriors.ico"

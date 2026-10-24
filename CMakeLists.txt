@@ -49,3 +49,6 @@ endif()
 
 # target name = GAME_EXE in build.bat, xbe = GAME_XBE
 add_xbe_image(Warriors default.xbe game.toml ${GAME_PARTITIONS} game)
+
+# icon by GectorNathan (https://github.com/GectorNathan), from Warri.png
+target_sources(Warriors PRIVATE res/warriors.rc)
