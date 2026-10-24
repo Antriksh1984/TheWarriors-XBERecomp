@@ -304,6 +304,15 @@ void DisplayTab() {
         Changed();
     }
     Hint("Anisotropic filtering applies to textures the game loads after the change.");
+    const char* msaa[] = {"Off", "2x", "4x", "8x"};
+    const uint32_t msaa_values[] = {1, 2, 4, 8};
+    int m = int(std::find(std::begin(msaa_values), std::end(msaa_values), s.msaa) - std::begin(msaa_values));
+    Label("Anti-aliasing (MSAA)");
+    if (ImGui::Combo("##msaa", &m, msaa, 4)) {
+        s.msaa = msaa_values[std::clamp(m, 0, 3)];
+        Changed();
+    }
+    Hint("Smooths the edges of the 3D scene. The GPU may top out below 8x, then it uses the most it has.");
 }
 
 }  // namespace
