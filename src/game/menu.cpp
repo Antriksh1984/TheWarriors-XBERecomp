@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -315,6 +316,27 @@ void DisplayTab() {
     Hint("Smooths the edges of the 3D scene. The GPU may top out below 8x, then it uses the most it has.");
 }
 
+// The lock pick's "Find Vibration and hold" is felt in the controller. Played with the mouse, the rumble the game asks
+// for is shown instead: a bar under the middle of the screen, as strong as the rumble, while the mouse holds the sticks.
+void VibrationCue() {
+    if (!kbm::MouseStick() || !kbm::KeyboardActive()) return;
+    float level = kbm::RumbleLevel();
+    if (level <= 0.0f) return;
+    ImGuiIO& io = ImGui::GetIO();
+    float scale = std::clamp(io.DisplaySize.y / 720.0f, 1.0f, 2.5f);
+    ImVec2 size{220.0f * scale, 14.0f * scale};
+    ImVec2 at{(io.DisplaySize.x - size.x) * 0.5f, io.DisplaySize.y * 0.62f};
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const char* label = "VIBRATION";
+    float font = ImGui::GetFontSize() * scale;
+    ImVec2 text = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.0f, label);
+    draw->AddText(ImGui::GetFont(), font, {at.x + (size.x - text.x) * 0.5f, at.y - text.y - 4.0f * scale},
+                  IM_COL32(230, 230, 230, 230), label);
+    draw->AddRectFilled(at, {at.x + size.x, at.y + size.y}, IM_COL32(20, 20, 20, 190), 3.0f * scale);
+    draw->AddRectFilled(at, {at.x + size.x * std::min(level, 1.0f), at.y + size.y}, IM_COL32(200, 40, 30, 230),
+                        3.0f * scale);
+}
+
 }  // namespace
 
 void SettingsUi(double fps) {
@@ -330,7 +352,10 @@ void SettingsUi(double fps) {
     if (g_open) io.ConfigFlags &= ~(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange);
     else io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
     SaveSoon(false);
-    if (!g_open) return;
+    if (!g_open) {
+        VibrationCue();
+        return;
+    }
     if (!PollCapture() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
         Open(false);
         return;

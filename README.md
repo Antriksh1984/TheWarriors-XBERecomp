@@ -166,6 +166,7 @@ In menus the left mouse button selects, the right button backs out and the wheel
 - Sound pitch and pitch variation, carried over to the host mixer's frequency.
 - The Rockstar logo can be skipped like the other boot movies (`src/game/movies.cpp`).
 - Keyboard and mouse for player 1, alongside a controller on the same port (`src/game/kbm.cpp`). The mouse turns the camera itself by its own angle, as on PC, through the camera's yaw and pitch speeds (`src/game/camera.cpp`), and stands in for the right stick where the camera does not read it (the gang command menu).
+- The stick minigames play with the mouse: where the world runs with no camera to turn (picking a lock, unscrewing a car stereo), the mouse holds both sticks where it pushes them and circles them round the rim, and while the keyboard and mouse are in use a bar on screen shows the vibration the lock pick is found by.
 - Button prompts show the keys bound to them while the keyboard and mouse are in use, and the controller's buttons again once it is used (`src/game/prompts.cpp`): the text's button icons, the words that name the pad ("click the left thumbstick", "pull and release both triggers") and the title screen's PRESS START, which becomes PRESS ANY KEY. They follow rebinding at once.
 - A settings panel on F10 (`src/game/menu.cpp`).
 

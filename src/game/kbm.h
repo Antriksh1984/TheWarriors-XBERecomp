@@ -72,6 +72,13 @@ bool TakeLook(float& yaw, float& pitch);
 // right stick
 void CameraSeen(bool stick);
 bool InPlay();  // a camera took the mouse within the last moments
+// The world's update ran (camera.cpp hooks 0x16D8D0): the game is in the world, not a front end menu
+void WorldSeen();
+// In the world with no camera the mouse turns (the lock pick, a car stereo): the mouse holds both sticks where it
+// pushes them, as a stick stays where it is held
+bool MouseStick();
+// the rumble the game asked of the keyboard's port, 0 to 1, shown while MouseStick for want of a controller to feel
+float RumbleLevel();
 bool KeyboardActive();  // the keyboard or mouse was used after the controller's last new press
 bool TestMode();        // XBE_KBM_TEST: driven by a script, diagnostics logged
 

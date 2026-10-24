@@ -53,6 +53,8 @@ constexpr float kRadiansPerCount = 0.0022f;
 // the mouse as the right stick where no camera reads it: counts a second for full tilt, over the last window
 constexpr float kStickCountsPerSecond = 1500.0f;
 constexpr uint64_t kStickWindowMs = 40;
+// the mouse holding a stick in a fixed camera scene: counts from the middle to full tilt at sensitivity 1
+constexpr float kHeldStickCounts = 400.0f;
 // the walk key's tilt, past the game's 0.24 dead zone: a walk
 constexpr float kWalkTilt = 0.55f;
 constexpr float kStickMax = 32767.0f;
@@ -179,6 +181,11 @@ struct Move {
 };
 std::array<Move, 64> g_moves{};  // the latest counts, for the mouse as a stick
 size_t g_move_next = 0;
+// the stick the mouse holds in a fixed camera scene, x right and y up, inside the unit circle
+float g_held_x = 0, g_held_y = 0;
+std::atomic<bool> g_holding{false};
+std::atomic<uint64_t> g_world_ms{0};
+std::atomic<uint16_t> g_rumble{0};
 
 HWND g_hwnd = nullptr;
 
@@ -255,6 +262,14 @@ void AddCounts(long dx, long dy) {
     g_dx += dx;
     g_dy += dy;
     g_moves[g_move_next++ % g_moves.size()] = {NowMs(), dx, dy};
+    if (g_holding) {
+        // pushed past the rim the stick slides round it, so circling the mouse circles the stick
+        float k = g_settings.mouse_sensitivity / kHeldStickCounts;
+        g_held_x += dx * k;
+        g_held_y -= (g_settings.invert_mouse_y ? -dy : dy) * k;
+        float len = std::sqrt(g_held_x * g_held_x + g_held_y * g_held_y);
+        if (len > 1.0f) g_held_x /= len, g_held_y /= len;
+    }
 }
 
 void OnRawInput(HRAWINPUT handle) {
@@ -357,8 +372,25 @@ void Keys(input::Pad& p) {
     }
     float lx = float(Held(kLookRight)) - float(Held(kLookLeft));
     float ly = float(Held(kLookUp)) - float(Held(kLookDown));
-    // the mouse is the right stick only where no camera turns by it (the command menu, a menu that reads the stick)
-    if ((!play || !g_stick_camera) && g_captured) {
+    // A fixed camera scene in the world (the lock pick, a car stereo) turns or holds a stick: the mouse holds both where
+    // it pushes them, the player being still meanwhile. Each scene starts it in the middle.
+    bool hold = MouseStick();
+    if (hold != g_holding.exchange(hold)) {
+        std::lock_guard lock(g_mouse_lock);
+        g_held_x = g_held_y = 0;
+        LOGR("kbm: the mouse %s the sticks", hold ? "holds" : "lets go of");
+    }
+    if (hold) {
+        float hx, hy;
+        {
+            std::lock_guard lock(g_mouse_lock);
+            hx = g_held_x, hy = g_held_y;
+        }
+        MergeStick(p.lx, p.ly, hx, hy);
+        MergeStick(p.rx, p.ry, hx, hy);
+    } else if ((!play || !g_stick_camera) && g_captured) {
+        // elsewhere the mouse is the right stick only where no camera turns by it (the command menu, a menu that
+        // reads the stick)
         float vx, vy;
         MouseSpeed(vx, vy);
         lx += vx / kStickCountsPerSecond;
@@ -629,7 +661,7 @@ void Pad(int port, input::Pad& p) {
 }
 
 void Rumble(int port, uint16_t& left, uint16_t& right) {
-    (void)port;
+    if (port == 0) g_rumble = std::max(left, right);
     float k = g_settings.vibration ? g_settings.vibration_strength : 0.0f;
     left = uint16_t(left * k);
     right = uint16_t(right * k);
@@ -675,6 +707,9 @@ void CameraSeen(bool stick) {
     g_stick_camera = stick;
 }
 bool InPlay() { return NowMs() - g_camera_ms < kPlayMs; }
+void WorldSeen() { g_world_ms = NowMs(); }
+bool MouseStick() { return g_settings.enabled && g_captured && NowMs() - g_world_ms < kPlayMs && !InPlay(); }
+float RumbleLevel() { return g_rumble / 65535.0f; }
 bool KeyboardActive() { return g_kbm_ms > g_pad_ms; }
 bool TestMode() { return g_test; }
 

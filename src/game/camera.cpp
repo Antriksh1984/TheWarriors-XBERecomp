@@ -50,6 +50,13 @@ void CameraPitchStick(X86Context& ctx, uint8_t* base) {
     g_pitch = true;
 }
 
+// the world's update (from the scheduler 0x2B2430): play, a fixed camera scene or a cutscene, not a front end menu
+X86_EXTERN_FUNC(__imp__sub_0016D8D0);
+X86_FUNC(sub_0016D8D0) {
+    warriors::kbm::WorldSeen();
+    __imp__sub_0016D8D0(ctx, base);
+}
+
 // (port, ?, bool* turned, ...), pops 0x28
 X86_EXTERN_FUNC(__imp__sub_0003EEC0);
 X86_FUNC(sub_0003EEC0) {
