@@ -287,20 +287,6 @@ void DisplayTab() {
         ImGui::EndCombo();
     }
     Section("FRAME RATE");
-    const char* caps[] = {"30", "60", "Monitor refresh rate", "Unlimited"};
-    const uint32_t values[] = {30, 60, app::kFpsCapRefresh, 0};
-    int cap = int(std::find(std::begin(values), std::end(values), s.fps_cap) - std::begin(values));
-    char custom[32];
-    std::snprintf(custom, sizeof(custom), "%u", s.fps_cap);
-    Label("Frame rate cap");
-    if (ImGui::BeginCombo("##fps", cap < 4 ? caps[cap] : custom)) {
-        for (int i = 0; i < 4; i++)
-            if (ImGui::Selectable(caps[i], i == cap)) {
-                s.fps_cap = values[i];
-                Changed();
-            }
-        ImGui::EndCombo();
-    }
     Check("VSync", s.vsync);
     Section("QUALITY");
     int render = int(s.render_percent);
