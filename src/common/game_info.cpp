@@ -26,4 +26,5 @@ const app::GameInfo app::kGame = {
     .ui = warriors::SettingsUi,           // ImGui drawing each frame
     .pad = warriors::kbm::Pad,            // changes a polled pad
     .rumble = warriors::kbm::Rumble,      // changes a rumble before it is set
+    .hdtv_720p = true,                    // the game picks 1280x720 when the console offers 720p
 };
